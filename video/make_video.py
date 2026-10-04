@@ -1,9 +1,11 @@
-import math, subprocess, imageio_ffmpeg
+import math, subprocess, sys, imageio_ffmpeg
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 UP = '/root/.claude/uploads/80b324ba-fd62-5b10-8cea-1f803f76de3b/'
-OUT = 'video/ouchi_kaji_note_short.mp4'
-W, H, FPS = 1080, 1920, 30
+# 引数なし: リール用 9:16 (1080x1920) / --feed: フィード投稿用 4:5 (1080x1350)
+FEED = '--feed' in sys.argv
+W, H, FPS = (1080, 1350, 30) if FEED else (1080, 1920, 30)
+OUT = 'video/ouchi_kaji_note_feed_4x5.mp4' if FEED else 'video/ouchi_kaji_note_short.mp4'
 FONT = '/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf'
 ACCENT = (122, 200, 176)
 
@@ -58,7 +60,7 @@ def caption(frame, text, alpha, pos='bottom', size=64):
     lines = wrap(text, f, W - 180)
     lh = int(size * 1.45)
     bh = lh * len(lines) + 70
-    y0 = H - bh - 140 if pos == 'bottom' else 170
+    y0 = H - bh - (60 if FEED else 140) if pos == 'bottom' else (110 if FEED else 170)
     layer = Image.new('RGBA', (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
     a = int(255 * alpha)
@@ -126,13 +128,14 @@ def shot_scene(key, text, label, zoom=(1.0, 1.08), cy=(0.2, 0.5), dur=4.0, size=
     def r(t):
         p = ease(t / dur)
         fr = BG.copy()
-        cw, ch = 880, 1564
         global W, H
+        ch = H - 230 if FEED else 1564
+        cw = round(ch * 9 / 16) if FEED else 880
         W0, H0 = W, H; W, H = cw, ch
         card = cover(img, zoom[0] + (zoom[1] - zoom[0]) * p, 0.5, cy[0] + (cy[1] - cy[0]) * p)
         W, H = W0, H0
         m = Image.new('L', (cw, ch), 0); ImageDraw.Draw(m).rounded_rectangle((0, 0, cw, ch), 44, fill=255)
-        fr.paste(card, ((W - cw) // 2, 200), m)
+        fr.paste(card, ((W - cw) // 2, 190 if FEED else 200), m)
         a = fade(t, dur)
         fr = tag(fr, label, a)
         return caption(fr, text, a, 'bottom', size)
@@ -148,11 +151,11 @@ def s_end(t):
         f = font(sz); tw = f.getlength(txt)
         c = tuple(int(v * a + 22 * (1 - a)) for v in col)
         d.text(((W - tw) / 2, y), txt, font=f, fill=c)
-    ctext('家事は体力勝負だから、', 700, 64, (240, 240, 240), a1)
-    ctext('少しでも', 820, 76, (240, 240, 240), a2)
-    ctext('頭を軽くしよう。', 930, 92, (255, 214, 102), a2)
-    ctext('おうち家事ノート', 1250, 56, ACCENT, a3)
-    ctext('made with Claude Code', 1330, 40, (190, 190, 190), a3)
+    ctext('家事は体力勝負だから、', (430 if FEED else 700), 64, (240, 240, 240), a1)
+    ctext('少しでも', (545 if FEED else 820), 76, (240, 240, 240), a2)
+    ctext('頭を軽くしよう。', (650 if FEED else 930), 92, (255, 214, 102), a2)
+    ctext('おうち家事ノート', (900 if FEED else 1250), 56, ACCENT, a3)
+    ctext('made with Claude Code', (975 if FEED else 1330), 40, (190, 190, 190), a3)
     return fr
 
 scenes = [
